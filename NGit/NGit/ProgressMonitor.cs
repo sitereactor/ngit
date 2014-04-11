@@ -80,6 +80,9 @@ namespace NGit
 		/// </param>
 		public abstract void BeginTask(string title, int totalWork);
 
+        public virtual void BeginTask(string title)
+        {}
+
 		/// <summary>Denote that some work units have been completed.</summary>
 		/// <remarks>
 		/// Denote that some work units have been completed.
@@ -90,6 +93,9 @@ namespace NGit
 		/// </remarks>
 		/// <param name="completed">the number of work units completed since the last call.</param>
 		public abstract void Update(int completed);
+
+        public virtual void Update(string message)
+        {}
 
 		/// <summary>Finish the current task, so the next can begin.</summary>
 		/// <remarks>Finish the current task, so the next can begin.</remarks>

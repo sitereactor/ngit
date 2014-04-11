@@ -62,7 +62,14 @@ namespace NGit.Transport
 			write = true;
 		}
 
-		protected internal override void OnUpdate(string taskName, int workCurr)
+	    protected internal override void OnUpdate(string taskName, string msg)
+	    {
+            StringBuilder s = new StringBuilder();
+	        s.AppendFormat("{0}   \r{1}", taskName, msg);
+            Send(s);
+	    }
+
+	    protected internal override void OnUpdate(string taskName, int workCurr)
 		{
 			StringBuilder s = new StringBuilder();
 			Format(s, taskName, workCurr);

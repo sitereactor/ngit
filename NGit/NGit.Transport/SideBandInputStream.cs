@@ -271,6 +271,13 @@ namespace NGit.Transport
 				lastCnt = cnt;
 				return;
 			}
+
+		    if (string.IsNullOrEmpty(msg) == false)
+		    {
+                monitor.BeginTask(PFX_REMOTE);
+                monitor.Update(msg);
+		    }
+
 			messages.Write(msg);
 		}
 

@@ -114,7 +114,16 @@ namespace NGit
 			pm.BeginTask(title, totalWork);
 		}
 
-		/// <summary>Notify the monitor a worker is starting.</summary>
+	    public override void BeginTask(string title)
+	    {
+            if (!IsMainThread())
+            {
+                throw new InvalidOperationException();
+            }
+	        pm.BeginTask(title);
+	    }
+
+	    /// <summary>Notify the monitor a worker is starting.</summary>
 		/// <remarks>Notify the monitor a worker is starting.</remarks>
 		public virtual void StartWorker()
 		{
@@ -197,7 +206,12 @@ namespace NGit
 			}
 		}
 
-		public override bool IsCancelled()
+	    public override void Update(string message)
+	    {
+            pm.Update(message);
+	    }
+
+	    public override bool IsCancelled()
 		{
 			Lock.Lock();
 			try

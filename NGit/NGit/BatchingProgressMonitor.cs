@@ -144,7 +144,17 @@ namespace NGit
 			}
 		}
 
-		public override void Update(int completed)
+	    public override void BeginTask(string title)
+	    {
+            EndTask();
+            task = new BatchingProgressMonitor.Task(title, 0);
+            if (delayStartTime != 0)
+            {
+                task.Delay(delayStartTime, delayStartUnit);
+            }
+	    }
+
+	    public override void Update(int completed)
 		{
 			if (task != null)
 			{
@@ -152,7 +162,15 @@ namespace NGit
 			}
 		}
 
-		public override void EndTask()
+	    public override void Update(string message)
+	    {
+            if (task != null)
+            {
+                task.Update(this, message);
+            }
+	    }
+
+	    public override void EndTask()
 		{
 			if (task != null)
 			{
@@ -165,6 +183,12 @@ namespace NGit
 		{
 			return false;
 		}
+
+        /// <summary>
+        /// Update the progress monitor if message is received </summary>
+        /// <param name="taskName">name of the task</param>
+        /// <param name="msg">message to show</param>
+        protected internal abstract void OnUpdate(string taskName, string msg);
 
 		/// <summary>Update the progress monitor if the total work isn't known,</summary>
 		/// <param name="taskName">name of the task.</param>
@@ -290,6 +314,17 @@ namespace NGit
 					}
 				}
 			}
+
+		    internal virtual void Update(BatchingProgressMonitor pm, string message)
+		    {
+                // Only display once per second, as the alarm fires.
+                if (display)
+                {
+                    pm.OnUpdate(taskName, message);
+                    output = true;
+                    RestartTimer();
+                }
+		    }
 
 			private void RestartTimer()
 			{
