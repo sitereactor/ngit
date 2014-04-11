@@ -455,8 +455,24 @@ namespace NGit.Merge
 						{
 							// the preferred version THEIRS has a different mode
 							// than ours. Check it out!
-							if (IsWorktreeDirty(work))
+							if (IsWorktreeDirty(work, false))
 							{
+                                if (_mergeFilter != null)
+                                {
+                                    var whos = _mergeFilter(tw.PathString);
+                                    if (whos == T_THEIRS)
+                                    {
+                                        //Choose THEIRS
+                                        DirCacheEntry eT = Add(tw.RawPath, theirs, DirCacheEntry.STAGE_0, 0, 0);
+                                        toBeCheckedOut.Put(tw.PathString, eT);
+                                        return true;
+                                    }
+                                    //Choose OURS
+                                    Keep(ourDce);
+                                    return true;
+                                }
+
+							    IsWorktreeDirty(work);
 								return false;
 							}
 							// we know about length and lastMod only after we have written the new content.
@@ -508,8 +524,24 @@ namespace NGit.Merge
 				// OURS was not changed compared to BASE. All changes must be in
 				// THEIRS. THEIRS is chosen.
 				// Check worktree before checking out THEIRS
-				if (IsWorktreeDirty(work))
+				if (IsWorktreeDirty(work, false))
 				{
+                    if (_mergeFilter != null)
+                    {
+                        var whos = _mergeFilter(tw.PathString);
+                        if (whos == T_THEIRS)
+                        {
+                            //Choose THEIRS
+                            DirCacheEntry eT = Add(tw.RawPath, theirs, DirCacheEntry.STAGE_0, 0, 0);
+                            toBeCheckedOut.Put(tw.PathString, eT);
+                            return true;
+                        }
+                        //Choose OURS
+                        Keep(ourDce);
+                        return true;
+                    }
+
+				    IsWorktreeDirty(work);
 					return false;
 				}
 				if (NonTree(modeT))
@@ -577,8 +609,24 @@ namespace NGit.Merge
 			if (NonTree(modeO) && NonTree(modeT))
 			{
 				// Check worktree before modifying files
-				if (IsWorktreeDirty(work))
+				if (IsWorktreeDirty(work, false))
 				{
+                    if (_mergeFilter != null)
+                    {
+                        var whos = _mergeFilter(tw.PathString);
+                        if (whos == T_THEIRS)
+                        {
+                            //Choose THEIRS
+                            DirCacheEntry eT = Add(tw.RawPath, theirs, DirCacheEntry.STAGE_0, 0, 0);
+                            toBeCheckedOut.Put(tw.PathString, eT);
+                            return true;
+                        }
+                        //Choose OURS
+                        Keep(ourDce);
+                        return true;
+                    }
+
+				    IsWorktreeDirty(work);
 					return false;
 				}
 				// Don't attempt to resolve submodule link conflicts
@@ -631,8 +679,24 @@ namespace NGit.Merge
 						if (modeO == 0)
 						{
 							// Check worktree before checking out THEIRS
-							if (IsWorktreeDirty(work))
+							if (IsWorktreeDirty(work, false))
 							{
+                                if (_mergeFilter != null)
+                                {
+                                    var whos = _mergeFilter(tw.PathString);
+                                    if (whos == T_THEIRS)
+                                    {
+                                        //Choose THEIRS
+                                        DirCacheEntry eT = Add(tw.RawPath, theirs, DirCacheEntry.STAGE_0, 0, 0);
+                                        toBeCheckedOut.Put(tw.PathString, eT);
+                                        return true;
+                                    }
+                                    //Choose OURS
+                                    Keep(ourDce);
+                                    return true;
+                                }
+
+							    IsWorktreeDirty(work);
 								return false;
 							}
 							if (NonTree(modeT))
@@ -678,20 +742,32 @@ namespace NGit.Merge
 				));
 		}
 
-		private bool IsIndexDirty()
+        /// <summary>
+        /// Checks whether the index is dirty
+        /// </summary>
+        /// <param name="commitWhenDirty">Boolean indicating whether to add entry to failing paths</param>
+        /// <returns></returns>
+        private bool IsIndexDirty(bool commitWhenDirty = true)
 		{
 			int modeI = tw.GetRawMode(T_INDEX);
 			int modeO = tw.GetRawMode(T_OURS);
 			// Index entry has to match ours to be considered clean
 			bool isDirty = NonTree(modeI) && !(modeO == modeI && tw.IdEqual(T_INDEX, T_OURS));
-			if (isDirty)
+            if (isDirty && commitWhenDirty)
 			{
 				failingPaths.Put(tw.PathString, ResolveMerger.MergeFailureReason.DIRTY_INDEX);
 			}
 			return isDirty;
 		}
 
-		private bool IsWorktreeDirty(WorkingTreeIterator work)
+        /// <summary>
+        /// Checks whether the worktree is dirty
+        /// </summary>
+        /// <remarks>The CommitWhenDirty parameter gives us a chance to check and react before adding the entry as a failed path</remarks>
+        /// <param name="work"></param>
+        /// <param name="commitWhenDirty">Boolean indicating whether to add entry to failing paths</param>
+        /// <returns></returns>
+		private bool IsWorktreeDirty(WorkingTreeIterator work, bool commitWhenDirty = true)
 		{
 			if (inCore || work == null)
 			{
@@ -705,7 +781,7 @@ namespace NGit.Merge
 			{
 				isDirty = !tw.IdEqual(T_FILE, T_OURS);
 			}
-			if (isDirty)
+			if (isDirty && commitWhenDirty)
 			{
 				failingPaths.Put(tw.PathString, ResolveMerger.MergeFailureReason.DIRTY_WORKTREE);
 			}
