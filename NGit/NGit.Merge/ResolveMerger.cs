@@ -44,6 +44,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using NGit;
 using NGit.Diff;
 using NGit.Dircache;
@@ -70,7 +71,7 @@ namespace NGit.Merge
 			COULD_NOT_DELETE
 		}
 
-		private NameConflictTreeWalk tw;
+        private NameConflictTreeWalk tw;
 
 		private string[] commitNames;
 
@@ -112,6 +113,8 @@ namespace NGit.Merge
 		private WorkingTreeIterator workingTreeIterator;
 
 		private MergeAlgorithm mergeAlgorithm;
+
+	    private Func<string, int> _mergeFilter;
 
 		/// <param name="local"></param>
 		/// <param name="inCore"></param>
@@ -465,14 +468,29 @@ namespace NGit.Merge
 					}
 					else
 					{
+					    if (_mergeFilter != null)
+					    {
+					        var whos = _mergeFilter(tw.PathString);
+					        if (whos == T_THEIRS)
+					        {
+                                //Choose THEIRS
+                                DirCacheEntry e = Add(tw.RawPath, theirs, DirCacheEntry.STAGE_0, 0, 0);
+                                toBeCheckedOut.Put(tw.PathString, e);
+                                return true;
+					        }
+                            //Choose OURS
+                            Keep(ourDce);
+					        return true;
+					    }
+
 						// FileModes are not mergeable. We found a conflict on modes.
 						// For conflicting entries we don't know lastModified and length.
-						Add(tw.RawPath, @base, DirCacheEntry.STAGE_1, 0, 0);
-						Add(tw.RawPath, ours, DirCacheEntry.STAGE_2, 0, 0);
-						Add(tw.RawPath, theirs, DirCacheEntry.STAGE_3, 0, 0);
-						unmergedPaths.AddItem(tw.PathString);
-						mergeResults.Put(tw.PathString, new MergeResult<RawText>(Sharpen.Collections.EmptyList
-							<RawText>()).Upcast ());
+                        Add(tw.RawPath, @base, DirCacheEntry.STAGE_1, 0, 0);
+                        Add(tw.RawPath, ours, DirCacheEntry.STAGE_2, 0, 0);
+                        Add(tw.RawPath, theirs, DirCacheEntry.STAGE_3, 0, 0);
+                        unmergedPaths.AddItem(tw.PathString);
+                        mergeResults.Put(tw.PathString, new MergeResult<RawText>(Sharpen.Collections.EmptyList
+                            <RawText>()).Upcast());
 					}
 					return true;
 				}
@@ -572,7 +590,25 @@ namespace NGit.Merge
 					unmergedPaths.AddItem(tw.PathString);
 					return true;
 				}
+                //Do the content merge
 				MergeResult<RawText> result = ContentMerge(@base, ours, theirs);
+                //If conflicts exists and a merge filter is available we choose based on the outcome
+                if(result.ContainsConflicts() && _mergeFilter != null)
+                {
+                    var whos = _mergeFilter(tw.PathString);
+                    if (whos == T_THEIRS)
+                    {
+                        //Choose THEIRS
+                        DirCacheEntry e = Add(tw.RawPath, theirs, DirCacheEntry.STAGE_0, 0, 0);
+                        toBeCheckedOut.Put(tw.PathString, e);
+                        return true;
+                    }
+
+                    //Choose OURS
+                    Keep(ourDce);
+                    return true;
+                }
+                //Default to merge conflict
 				FilePath of = WriteMergedFile(result);
 				UpdateIndex(@base, ours, theirs, result, of);
 				if (result.ContainsConflicts())
@@ -586,8 +622,7 @@ namespace NGit.Merge
 				if (modeO != modeT)
 				{
 					// OURS or THEIRS has been deleted
-					if (((modeO != 0 && !tw.IdEqual(T_BASE, T_OURS)) || (modeT != 0 && !tw.IdEqual(T_BASE
-						, T_THEIRS))))
+					if (((modeO != 0 && !tw.IdEqual(T_BASE, T_OURS)) || (modeT != 0 && !tw.IdEqual(T_BASE, T_THEIRS))))
 					{
 						Add(tw.RawPath, @base, DirCacheEntry.STAGE_1, 0, 0);
 						Add(tw.RawPath, ours, DirCacheEntry.STAGE_2, 0, 0);
@@ -925,8 +960,7 @@ namespace NGit.Merge
 		/// conflict). <code>null</code> is returned if this merge didn't
 		/// fail.
 		/// </returns>
-		public virtual IDictionary<string, ResolveMerger.MergeFailureReason> GetFailingPaths
-			()
+		public virtual IDictionary<string, ResolveMerger.MergeFailureReason> GetFailingPaths()
 		{
 			return (failingPaths.Count == 0) ? null : failingPaths;
 		}
@@ -975,10 +1009,21 @@ namespace NGit.Merge
 		/// merger will be able to merge with a different working tree abstraction.
 		/// </remarks>
 		/// <param name="workingTreeIterator">the workingTreeIt to set</param>
-		public virtual void SetWorkingTreeIterator(WorkingTreeIterator workingTreeIterator
-			)
+		public virtual void SetWorkingTreeIterator(WorkingTreeIterator workingTreeIterator)
 		{
 			this.workingTreeIterator = workingTreeIterator;
 		}
+
+        /// <summary>
+        /// Sets the merge filter for conflicting merges between Ours and Theirs
+        /// </summary>
+        /// <remarks>
+        /// The returned integer should be 1 for Ours or 2 for Theirs.
+        /// </remarks>
+        /// <param name="mergeFilter"></param>
+	    public virtual void SetMergeFilter(Func<string, int> mergeFilter)
+	    {
+	        this._mergeFilter = mergeFilter;
+	    }
 	}
 }

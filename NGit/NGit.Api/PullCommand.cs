@@ -41,11 +41,13 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+using System;
 using System.IO;
 using NGit;
 using NGit.Api;
 using NGit.Api.Errors;
 using NGit.Internal;
+using NGit.Merge;
 using NGit.Transport;
 using Sharpen;
 
@@ -57,6 +59,8 @@ namespace NGit.Api
 	public class PullCommand : TransportCommand<NGit.Api.PullCommand, PullResult>
 	{
 		private static readonly string DOT = ".";
+
+        private Func<string, int> _mergeFilter;
 
 		private ProgressMonitor monitor = NullProgressMonitor.INSTANCE;
 
@@ -72,6 +76,21 @@ namespace NGit.Api
 			this.monitor = monitor;
 			return this;
 		}
+
+        /// <summary>
+        /// Sets the merge filter for conflicting merges between Ours and Theirs.
+        /// The filter is passed on to the <see cref="ResolveMerger"/> through
+        /// the <see cref="MergeCommand"/>
+        /// </summary>
+        /// <remarks>
+        /// The returned integer should be 1 for Ours or 2 for Theirs.
+        /// </remarks>
+        /// <param name="mergeFilter"></param>
+        public virtual NGit.Api.PullCommand SetMergeFilter(Func<string, int> mergeFilter)
+        {
+            this._mergeFilter = mergeFilter;
+            return this;
+        }
 
 		/// <summary>
 		/// Executes the
@@ -251,6 +270,7 @@ namespace NGit.Api
 			{
 				MergeCommand merge = new MergeCommand(repo);
 				merge.Include(upstreamName, commitToMerge);
+			    merge.SetMergeFilter(_mergeFilter);
 				MergeCommandResult mergeRes = merge.Call();
 				monitor.Update(1);
 				result = new PullResult(fetchRes, remote, mergeRes);

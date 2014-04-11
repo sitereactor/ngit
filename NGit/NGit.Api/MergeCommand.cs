@@ -41,6 +41,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -78,7 +79,9 @@ namespace NGit.Api
 
 		private bool squash;
 
-		/// <param name="repo"></param>
+	    private Func<string, int> _mergeFilter;
+
+	    /// <param name="repo"></param>
 		protected internal MergeCommand(Repository repo) : base(repo)
 		{
 		}
@@ -221,6 +224,7 @@ namespace NGit.Api
 							ResolveMerger resolveMerger = (ResolveMerger)merger;
 							resolveMerger.SetCommitNames(new string[] { "BASE", "HEAD", @ref.GetName() });
 							resolveMerger.SetWorkingTreeIterator(new FileTreeIterator(repo));
+                            resolveMerger.SetMergeFilter(_mergeFilter);
 							noProblems = merger.Merge(headCommit, srcCommit);
 							lowLevelResults = resolveMerger.GetMergeResults();
 							failingPaths = resolveMerger.GetFailingPaths();
@@ -414,5 +418,19 @@ namespace NGit.Api
 			this.squash = squash;
 			return this;
 		}
+
+        /// <summary>
+        /// Sets the merge filter for conflicting merges between Ours and Theirs.
+        /// The filter is passed on to the <see cref="ResolveMerger"/>
+        /// </summary>
+        /// <remarks>
+        /// The returned integer should be 1 for Ours or 2 for Theirs.
+        /// </remarks>
+        /// <param name="mergeFilter"></param>
+        public virtual NGit.Api.MergeCommand SetMergeFilter(Func<string, int> mergeFilter)
+        {
+            this._mergeFilter = mergeFilter;
+            return this;
+        }
 	}
 }
